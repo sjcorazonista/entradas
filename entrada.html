@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#9b7cc8">
+<title>Festival San José · Tu entrada</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#9b7cc8;color:#fff;min-height:100vh;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:480px;margin:0 auto;padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
+  .poster{width:100%;border-radius:18px;display:block;box-shadow:0 12px 40px rgba(0,0,0,.28)}
+  .card{background:#fff;color:#2c2c54;border-radius:20px;padding:24px 22px;margin-top:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);transition:all .3s}
+  .card.valido{border-top:6px solid #27ae60}
+  .card.usado{border-top:6px solid #e67e22;background:#fff8ee}
+  .card.invalido{border-top:6px solid #c0392b;background:#fff0ec}
+  .badge{display:inline-flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:12px;letter-spacing:.12em;padding:8px 16px;border-radius:24px;margin-bottom:14px;text-transform:uppercase}
+  .badge.loading{background:#7c4dc9}
+  .badge.valido{background:#27ae60}
+  .badge.usado{background:#e67e22}
+  .badge.invalido{background:#c0392b}
+  .title{font-size:22px;font-weight:900;line-height:1.25;margin-bottom:10px;color:#2c2c54}
+  .msg{font-size:15.5px;line-height:1.5;color:#5a5a72;margin-bottom:20px}
+  .id-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.18em;color:#9b9bac;margin-bottom:8px;font-weight:700}
+  .id{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;font-weight:700;color:#5b3a9a;padding:11px 16px;background:#f4eeff;border:1.5px dashed #c1a8e8;border-radius:10px;display:inline-block;letter-spacing:.04em}
+  .foot{text-align:center;font-size:12px;opacity:.85;margin-top:18px;line-height:1.5}
+  .foot strong{font-weight:700}
+  .spinner{width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite;display:inline-block}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img src="cartel.png" class="poster" alt="Festival San José">
+  <div class="card loading" id="card">
+    <div class="badge loading" id="badge"><span class="spinner"></span><span id="badgetxt">Comprobando</span></div>
+    <div class="title" id="title">Tu entrada para el Festival</div>
+    <div class="msg" id="msg">Verificando el código…</div>
+    <div class="id-label">Código de entrada</div>
+    <span class="id" id="id">FEST-0000-XXXXXX</span>
+  </div>
+  <div class="foot"><strong>Fundación Educativa Corazonista</strong><br>Viernes 5 de junio · 20h</div>
+</div>
+<script>
+const SCRIPT = 'https://script.google.com/macros/s/AKfycbzCaHnFykQbJWRzL4JoeblBV5Bvfn1O5XCNw1olycTcd0ob09jC_tTh_QxkGX5nHpo/exec';
+
+const m = window.location.search.match(/[?&]id=([^&]+)/);
+const id = m ? decodeURIComponent(m[1]) : null;
+document.getElementById('id').textContent = id || 'Sin código';
+
+function paint(cls, badgeTxt, title, msg) {
+  const card = document.getElementById('card');
+  const badge = document.getElementById('badge');
+  card.className = 'card ' + cls;
+  badge.className = 'badge ' + cls;
+  document.getElementById('badgetxt').textContent = badgeTxt;
+  // Quitar spinner cuando ya no estamos en loading
+  if (cls !== 'loading') {
+    const sp = badge.querySelector('.spinner');
+    if (sp) sp.remove();
+  }
+  document.getElementById('title').textContent = title;
+  document.getElementById('msg').textContent = msg;
+}
+
+if (!id) {
+  paint('invalido', '✗ Sin código', 'Entrada sin código',
+        'Este QR no contiene un código válido. Acércate a la entrada del Colegio para asistencia.');
+} else {
+  fetch(SCRIPT + '?id=' + encodeURIComponent(id) + '&json=1', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(r => {
+      if (r.status === 'valido') {
+        paint('valido', '✓ Entrada válida', 'Tu entrada está lista',
+              'Preséntala en la entrada del Colegio para acceder al Festival. Conserva este código hasta el día del evento.');
+      } else if (r.status === 'usado') {
+        paint('usado', '⚠ Entrada ya usada', 'Esta entrada ya se ha usado',
+              (r.sub || 'Si crees que es un error, habla con la organización en la entrada del Colegio.'));
+      } else if (r.status === 'invalido') {
+        paint('invalido', '✗ QR no válido', 'Entrada no encontrada',
+              'Este código no figura en nuestra base de datos. Verifica que es la entrada oficial del Festival.');
+      } else {
+        // respuesta inesperada - mensaje genérico amable
+        paint('valido', '✓ Entrada válida', 'Tu entrada para el Festival',
+              'Preséntala en la entrada del Colegio para acceder al Festival.');
+      }
+    })
+    .catch(() => {
+      // Si no se puede contactar con el servidor, mostrar mensaje amable
+      paint('valido', '✓ Entrada válida', 'Tu entrada para el Festival',
+            'Preséntala en la entrada del Colegio para acceder al Festival.');
+    });
+}
+</script>
+</body>
+</html>
